@@ -131,6 +131,24 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 		return nil, nil, err
 	}
 
+	// If 'rest' start with [' or [" then assume it must be JSON
+	// and any parsing error should stop the processing.  Note that
+	// [' isn't valid JSON but many people use ' instead of " by mistake
+	// we we're trying to catch that case to help them out.
+	if len(rest) > 0 && rest[0] == '[' && err != nil {
+		tmpRest := strings.TrimSpace( rest[1:] )
+		if len(tmpRest) > 0 && (tmpRest[0] == '\'' || tmpRest[0] == '"') {
+
+			fmt.Println("DUG:", rest);
+			fmt.Println("    ", err);
+			return nil, nil, err
+		}
+	}
+
+	if rest[0] == '[' && err != nil {
+		fmt.Println("DUG: ", err )
+	}
+
 	node = &Node{}
 	node.Value = rest
 	return node, nil, nil

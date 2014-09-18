@@ -2039,3 +2039,39 @@ func TestBuildClearCmd(t *testing.T) {
 	}
 	logDone("build - clearcmd")
 }
+
+/*
+func TestBuildJsonArray(t *testing.T) {
+	name := "testbuildjsonarray"
+	defer deleteImages(name)
+
+	// Simple use of single quotes
+	_, err := buildImage(name,
+		`From scratch
+   ENTRYPOINT ['/bin/bash']`,
+		true)
+	if err == nil {
+		t.Fatalf("Was expecting a JSON parsing error on '")
+	}
+
+	// missing trailing quote
+	_, err = buildImage(name,
+		`From scratch
+   ENTRYPOINT ["echo", "look ma, no quote!]`,
+		true)
+	if err == nil {
+		t.Fatalf("Was expecting a JSON parsing error for missing quote")
+	}
+
+	// missing ]
+	_, err = buildImage(name,
+		`From scratch
+   ENTRYPOINT ["echo", "Please, close the brackets when you're done"`,
+		true)
+	if err == nil {
+		t.Fatalf("Was expecting a JSON parsing error for missing ]")
+	}
+
+	logDone("build - json array")
+}
+*/
