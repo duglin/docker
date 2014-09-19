@@ -185,6 +185,117 @@ func TestAddMultipleFilesToFile(t *testing.T) {
 	logDone("build - multiple add files to file")
 }
 
+func TestAddMultipleSameFiles(t *testing.T) {
+	name := "testaddmultiplesamefiles"
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`FROM scratch
+	ADD file1.txt file1.txt test/
+        `,
+		map[string]string{
+			"file1.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "Can not ADD the same file more than once: file1.txt"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	ctx, err = fakeContext(`FROM scratch
+	ADD file1.txt dir/file1.txt test/
+        `,
+		map[string]string{
+			"file1.txt": "test1",
+			"dir/file1.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = "Can not ADD to a previously used target file: test/file1.txt"
+	if _, err = buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add same files")
+}
+
+func TestAddMultipleSameURL(t *testing.T) {
+	name := "testaddmultiplesameurl"
+	server, err := fakeStorage(map[string]string{
+		"robots.txt": "hello",
+		"dir/robots.txt": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+	ADD %s/robots.txt %s/robots.txt test/
+        `, server.URL, server.URL), nil)
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "Can not ADD the same file more than once"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	ctx, err = fakeContext(fmt.Sprintf(`FROM scratch
+	ADD %s/robots.txt %s/dir/robots.txt test/
+        `, server.URL, server.URL), nil)
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = "Can not ADD to a previously used target file: test/robots.txt"
+	if _, err = buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add same url")
+}
+
+func TestAddMultipleSameTarFiles(t *testing.T) {
+	name := "testaddmultiplesametarfiles"
+	defer deleteImages(name)
+
+	tmpDir, err := ioutil.TempDir("", "fake-context")
+	testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
+	if err != nil {
+		t.Fatalf("failed to create test.tar archive: %v", err)
+	}
+	testTar.Close()
+
+	ctx, err := fakeContext(`FROM scratch
+	ADD test.tar test.tar test/
+        `,
+		map[string]string{
+			"test.tar": "",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "Can not ADD the same file more than once: test.tar"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add same tar files")
+}
+
 func TestCopyMultipleFilesToFile(t *testing.T) {
 	name := "testcopymultiplefilestofile"
 	defer deleteImages(name)

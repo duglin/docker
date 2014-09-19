@@ -137,6 +137,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		}
 	}()
 
+	prev := make( map[string]bool )
+
 	// Loop through each src file and calculate the info we need to
 	// do the copy (e.g. hash value if cached).  Don't actually do
 	// the copy until we've looked at all src files
@@ -146,7 +148,31 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		ci.destPath = dest
 		ci.decompress = true
 
+		if prev[orig] {
+			return fmt.Errorf("Can not %s the same file more than once: %s", cmdName, orig )
+		}
+		prev[orig] = true 
+
 		err := calcCopyInfo(b, cmdName, ci, allowRemote, allowDecompression)
+		// Check to see if we're copying to the same file more than 
+		// once.  While we can't (and shouldn't) stop this across 
+		// COPY/ADD commands we should stop it within the same one.   
+		// Note that in the case of a tar file we can't really check 
+		// for the resulting files w/o cracking open the tar, so 
+		// instead let's just check for the easy case of the same 
+		// tar file itself being specified as the src
+		var tmpDest string 
+		if strings.HasSuffix(ci.destPath, "/") {
+			tmpDest = ci.destPath + path.Base(ci.origPath)
+		} else {
+			tmpDest = ci.destPath
+		}
+
+		if prev[tmpDest] {
+			return fmt.Errorf("Can not %s to a previously used target file: %s", cmdName, tmpDest )
+		} 
+		prev[tmpDest] = true
+
 		if err != nil {
 			return err
 		}
