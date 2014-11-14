@@ -1031,6 +1031,8 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
+		buildEnvEncoded   = r.Header.Get("X-BuildEnv")
+		buildEnv          = []string{}
 		job               = eng.Job("build")
 	)
 
@@ -1053,6 +1055,13 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
 			configFile = &registry.ConfigFile{}
+		}
+	}
+
+	if buildEnvEncoded != "" {
+		buildEnvJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(buildEnvEncoded))
+		if err := json.NewDecoder(buildEnvJson).Decode(&buildEnv); err != nil {
+			return err
 		}
 	}
 
@@ -1086,6 +1095,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("memory", r.FormValue("memory"))
 	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
 	job.Setenv("cpushares", r.FormValue("cpushares"))
+	job.SetenvList("buildEnv", buildEnv)
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {

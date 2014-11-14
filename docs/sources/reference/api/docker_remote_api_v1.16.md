@@ -1208,7 +1208,15 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
+-   **X-Registry-Config** – base64-encoded ConfigFile object
+-   **X-BuildEnv** – base64-encoded JSON array of strings of build-time environment
+    variables in the form <var>=<value>. These can be accessed like regular
+    environment variables in the 'RUN' primitive of the Dockerfile. And they are
+    not persisted in the intermediate and final images. This can be useful for
+    building images that require access to certain environment variables that
+    are specific to the build host like http-proxy; user credentials for
+    pulling intermediate files etc.
+
 
 Status Codes:
 

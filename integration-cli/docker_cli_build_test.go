@@ -5596,3 +5596,93 @@ func TestBuildEmptyStringVolume(t *testing.T) {
 
 	logDone("build - empty string volume")
 }
+
+func TestBuildBuildTimeEnv(t *testing.T) {
+	envKey := "foo"
+	envVal := "bar"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "-e",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
+		"RUN echo $%s\n"+
+		"CMD echo $%s\n",
+		envKey, envKey))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || !strings.Contains(out, envVal) {
+		if err != nil {
+			t.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		defer func() { deleteImages("bldenvtest") }()
+		t.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envVal)
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "bldenvtest")
+	if out, _, err := runCommandWithOutput(runCmd); out != "\n" || err != nil {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, "")
+	}
+
+	logDone("build - build an image with build time environment variables")
+}
+
+func TestBuildBuildTimeEnvUsingEnvFile(t *testing.T) {
+	envKey := "foo"
+	envVal := "bar"
+	ctx, err := fakeContext("", map[string]string{
+		"envFile": fmt.Sprintf("%s=%s\n", envKey, envVal),
+	})
+	defer ctx.Close()
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--env-file",
+		fmt.Sprintf("%s/envFile", ctx.Dir), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
+		"RUN echo $%s\n"+
+		"CMD echo $%s\n",
+		envKey, envKey))
+
+	var out string
+	if out, _, err = runCommandWithOutput(buildCmd); err != nil || !strings.Contains(out, envVal) {
+		if err != nil {
+			t.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		defer func() { deleteImages("bldenvtest") }()
+		t.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envVal)
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "bldenvtest")
+	if out, _, err := runCommandWithOutput(runCmd); out != "\n" || err != nil {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, "")
+	}
+
+	logDone("build - build an image with build time environment variables read from env-file")
+}
+
+func TestBuildBuildTimeEnvOverride(t *testing.T) {
+	envKey := "foo"
+	envVal := "bar"
+	envValOveride := "barOverride"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "-e",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
+		"ENV %s %s \n"+
+		"RUN echo $%s\n"+
+		"CMD echo $%s\n",
+		envKey, envValOveride,
+		envKey, envKey))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || !strings.Contains(out, envValOveride) {
+		if err != nil {
+			t.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		defer func() { deleteImages("bldenvtest") }()
+		t.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envValOveride)
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "bldenvtest")
+	if out, _, err := runCommandWithOutput(runCmd); !strings.Contains(out, envValOveride) || err != nil {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	}
+
+	logDone("build - build an image with build time environment variables override")
+}

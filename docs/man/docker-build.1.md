@@ -8,6 +8,8 @@ docker-build - Build a new image from the source code at PATH
 **docker build**
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
+[**-e**|**--env**[=*[]*]]
+[**--env-file**[=*[]*]]
 [**--force-rm**[=*false*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
@@ -40,6 +42,19 @@ as context.
 # OPTIONS
 **-f**, **--file**=*PATH/Dockerfile*
    Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
+
+**-e**, **--env**=*environment*
+   Set build-time environment variables. This option allows you to specify
+arbitrary environment variables that are available for the command(s) that will
+be executed as part of 'RUN' primitive of Dockerfile. Such a variable is only
+accessible during 'RUN' and is not persisted with the intermediate
+and final docker images, keeping the generated image portable across the
+actual deployment environments. This gives the flexibility to build
+an image by passing host specific environment variables (like http_proxy) without
+changing the Dockerfile.
+
+**--env-file**=[]
+   Read in a line delimited file of build-time environment variables.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

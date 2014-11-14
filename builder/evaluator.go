@@ -109,6 +109,9 @@ type Builder struct {
 
 	Config *runconfig.Config // runconfig for cmd, run, entrypoint etc.
 
+	// build-time environment variables for 'run'. These are not persisted with final or intermediate build images.
+	BuildEnv []string
+
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 

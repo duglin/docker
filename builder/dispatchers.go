@@ -261,10 +261,16 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// set Cmd manually, this is special case only for Dockerfiles
 	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
+	// set build-time environment for 'run'. We let dockerfile
+	// environment override build-time environment.
+	env := b.Config.Env
+	b.Config.Env = append(b.BuildEnv, b.Config.Env...)
 
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	defer func(env []string) { b.Config.Env = env }(env)
 
 	log.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	log.Debugf("[BUILDER] Environment (applied in order): %v", b.Config.Env)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -288,6 +294,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if err != nil {
 		return err
 	}
+	// revert to original config, we don't persist build time environment
+	b.Config.Env = env
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
