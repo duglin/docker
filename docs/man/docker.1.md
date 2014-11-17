@@ -214,7 +214,7 @@ inside it)
   Show the Docker version information
 
 **docker-wait(1)**
-  Block until a container stops, then print its exit code
+  Block until a container, or exec, stops, then print its exit code
 
 # STORAGE DRIVER OPTIONS
 

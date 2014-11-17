@@ -2527,8 +2527,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, false)); err != nil {
 			return err
 		}
-		// For now don't print this - wait for when we support exec wait()
-		// fmt.Fprintf(cli.out, "%s\n", execID)
+		fmt.Fprintf(cli.out, "%s\n", execID)
 		return nil
 	}
 

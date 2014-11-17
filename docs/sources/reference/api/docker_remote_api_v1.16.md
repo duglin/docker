@@ -755,7 +755,7 @@ Status Codes:
 
 `POST /containers/(id)/wait`
 
-Block until container `id` stops, then returns the exit code
+Block until container, or exec, `id` stops, then returns the exit code
 
 **Example request**:
 

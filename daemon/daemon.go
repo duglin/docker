@@ -95,7 +95,7 @@ type Daemon struct {
 	execCommands   *execStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
-	idIndex        *truncindex.TruncIndex
+	idIndex        *truncindex.TruncIndex // for container IDs
 	sysInfo        *sysinfo.SysInfo
 	volumes        *volumes.Repository
 	eng            *engine.Engine
@@ -103,6 +103,7 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	execIDIndex    *truncindex.TruncIndex // for exec IDs
 	trustStore     *trust.TrustStore
 	statsCollector *statsCollector
 }
@@ -983,6 +984,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+		execIDIndex:    truncindex.NewTruncIndex([]string{}),
 		trustStore:     t,
 		statsCollector: newStatsCollector(1 * time.Second),
 	}
