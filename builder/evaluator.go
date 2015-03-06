@@ -148,24 +148,28 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		}
 	}()
 
-	if err := b.readDockerfile(); err != nil {
-		return "", err
-	}
-
 	// some initializations that would not have been supplied by the caller.
 	b.Config = &runconfig.Config{}
 	b.TmpContainers = map[string]struct{}{}
 
-	for i, n := range b.dockerfile.Children {
-		if err := b.dispatch(i, n); err != nil {
-			if b.ForceRemove {
+	if err := b.readDockerfile(); err != nil {
+		return "", err
+	}
+
+	// Either it wasn't a script or the script has some Dockerfile
+	// commands that it wants executed
+	if b.dockerfile != nil {
+		for i, n := range b.dockerfile.Children {
+			if err := b.dispatch(i, n); err != nil {
+				if b.ForceRemove {
+					b.clearTmp()
+				}
+				return "", err
+			}
+			fmt.Fprintf(b.OutStream, " ---> %s\n", common.TruncateID(b.image))
+			if b.Remove {
 				b.clearTmp()
 			}
-			return "", err
-		}
-		fmt.Fprintf(b.OutStream, " ---> %s\n", common.TruncateID(b.image))
-		if b.Remove {
-			b.clearTmp()
 		}
 	}
 
@@ -207,6 +211,22 @@ func (b *Builder) readDockerfile() error {
 	}
 	if fi.Size() == 0 {
 		return ErrDockerfileEmpty
+	}
+
+	// First, check to see if its a script file
+	didIt, err := b.ProcessDockerScript(filename)
+	if err != nil {
+		return err
+	}
+	if didIt {
+		// We processed the Script, now look for a Dockerfile
+		// to do some post-processing, if found just fall thru
+		// otherwise, we're done so just return
+		filename = filepath.Join(b.contextPath, ".docker-post-cfg")
+		fi, err = os.Lstat(filename)
+		if err != nil {
+			return nil
+		}
 	}
 
 	f, err := os.Open(filename)

@@ -1,0 +1,1 @@
+echo USER $* >> /src/.docker-post-cfg

@@ -253,6 +253,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	c.Mount()
 	defer c.Unmount()
 
+	c.HostConfig().Binds = append(c.HostConfig().Binds, b.contextPath+":/src")
+
 	err = b.run(c)
 	if err != nil {
 		return err

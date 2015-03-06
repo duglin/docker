@@ -1,0 +1,1 @@
+echo ONBUILD $* >> /src/.docker-post-cfg
