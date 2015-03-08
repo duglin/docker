@@ -1033,6 +1033,8 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		configFile        = &registry.ConfigFile{}
 		buildEnvEncoded   = r.Header.Get("X-BuildEnv")
 		buildEnv          = []string{}
+		buildVarsEncoded  = r.Header.Get("X-BuildVars")
+		buildVars         = []string{}
 		job               = eng.Job("build")
 	)
 
@@ -1061,6 +1063,13 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	if buildEnvEncoded != "" {
 		buildEnvJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(buildEnvEncoded))
 		if err := json.NewDecoder(buildEnvJson).Decode(&buildEnv); err != nil {
+			return err
+		}
+	}
+
+	if buildVarsEncoded != "" {
+		buildVarsJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(buildVarsEncoded))
+		if err := json.NewDecoder(buildVarsJson).Decode(&buildVars); err != nil {
 			return err
 		}
 	}
@@ -1096,6 +1105,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
 	job.Setenv("cpushares", r.FormValue("cpushares"))
 	job.SetenvList("buildEnv", buildEnv)
+	job.SetenvList("buildVars", buildVars)
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {

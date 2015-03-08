@@ -1216,6 +1216,11 @@ Query Parameters:
     building images that require access to certain environment variables that
     are specific to the build host like http-proxy; user credentials for
     pulling intermediate files etc.
+-   **X-BuildVars** – base64-encoded JSON array of strings of values for the build
+    variables in the form <var>=<value>. These are used to expand/substitute
+    the corresponding variables used in the Dockerfile primitives, without
+    an explicit definition by the ENV primitive. Note that the expanded values
+    of these variables get persisted in the intermediate and final docker images.
 
 
 Status Codes:

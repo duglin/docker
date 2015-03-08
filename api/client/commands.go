@@ -96,8 +96,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCpuSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flEnv := opts.NewListOpts(opts.ValidateEnv)
 	flEnvFile := opts.NewListOpts(nil)
-	cmd.Var(&flEnv, []string{"e", "-env"}, "Set build-time environment variables")
-	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of build-time environment variables")
+	cmd.Var(&flEnv, []string{"-build-env"}, "Set build-time environment variables")
+	cmd.Var(&flEnvFile, []string{"-build-env-file"}, "Read in a file of build-time environment variables")
+	flVars := opts.NewListOpts(opts.ValidateEnv)
+	flVarsFile := opts.NewListOpts(nil)
+	cmd.Var(&flVars, []string{"-build-var"}, "Set values of build variables")
+	cmd.Var(&flVarsFile, []string{"-build-var-file"}, "Read in a file of values for build variables")
 
 	cmd.Require(flag.Exact, 1)
 
@@ -336,7 +340,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
-	// collect all the environment variables for the container
+	// collect all the build-time environment variables for the container
 	envVariables := []string{}
 	for _, ef := range flEnvFile.GetAll() {
 		parsedVars, err := opts.ParseEnvFile(ef)
@@ -345,13 +349,30 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 		envVariables = append(envVariables, parsedVars...)
 	}
-	// parse the '-e' and '--env' after, to allow override the env-file
+	// parse the '--build-env' after, to allow override the env-file
 	envVariables = append(envVariables, flEnv.GetAll()...)
 	buf, err = json.Marshal(envVariables)
 	if err != nil {
 		return err
 	}
 	headers.Add("X-BuildEnv", base64.URLEncoding.EncodeToString(buf))
+
+	// collect all the values of variables for expansion/substitution
+	variables := []string{}
+	for _, ef := range flVarsFile.GetAll() {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return err
+		}
+		variables = append(variables, parsedVars...)
+	}
+	// parse the '--var' after, to allow override the var-file
+	variables = append(variables, flVars.GetAll()...)
+	buf, err = json.Marshal(variables)
+	if err != nil {
+		return err
+	}
+	headers.Add("X-BuildVars", base64.URLEncoding.EncodeToString(buf))
 
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")

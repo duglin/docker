@@ -5600,7 +5600,7 @@ func TestBuildEmptyStringVolume(t *testing.T) {
 func TestBuildBuildTimeEnv(t *testing.T) {
 	envKey := "foo"
 	envVal := "bar"
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "-e",
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-env",
 		fmt.Sprintf("%s=%s", envKey, envVal), "-")
 	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
 		"RUN echo $%s\n"+
@@ -5632,7 +5632,7 @@ func TestBuildBuildTimeEnvUsingEnvFile(t *testing.T) {
 	})
 	defer ctx.Close()
 
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--env-file",
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-env-file",
 		fmt.Sprintf("%s/envFile", ctx.Dir), "-")
 	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
 		"RUN echo $%s\n"+
@@ -5661,7 +5661,7 @@ func TestBuildBuildTimeEnvOverride(t *testing.T) {
 	envKey := "foo"
 	envVal := "bar"
 	envValOveride := "barOverride"
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "-e",
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-env",
 		fmt.Sprintf("%s=%s", envKey, envVal), "-")
 	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
 		"ENV %s %s \n"+
@@ -5685,4 +5685,261 @@ func TestBuildBuildTimeEnvOverride(t *testing.T) {
 	}
 
 	logDone("build - build an image with build time environment variables override")
+}
+
+func TestBuildBuildVars(t *testing.T) {
+	imgName := "bldvarstest"
+	defer func() { deleteImages(imgName) }()
+
+	wdVar := "WDIR"
+	wdVal := "/tmp/"
+	addVar := "AFILE"
+	addVal := "addFile"
+	copyVar := "CFILE"
+	copyVal := "copyFile"
+	envVar := "foo"
+	envVal := "bar"
+	exposeVar := "EPORT"
+	exposeVal := "9999"
+	userVar := "USER"
+	userVal := "testUser"
+	volVar := "VOL"
+	volVal := "/testVol/"
+	ctx, err := fakeContext(fmt.Sprintf("FROM busybox\n"+
+		"WORKDIR ${%s}\n"+
+		"ADD ${%s} testDir/\n"+
+		"COPY $%s testDir/\n"+
+		"ENV %s=${%s}\n"+
+		"EXPOSE $%s\n"+
+		"USER $%s\n"+
+		"VOLUME ${%s}\n",
+		wdVar, addVar, copyVar, envVar, envVar, exposeVar, userVar, volVar),
+		map[string]string{
+			addVal:  "some stuff",
+			copyVal: "some stuff",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	args := []string{
+		"--build-var", fmt.Sprintf("%s=%s", wdVar, wdVal),
+		"--build-var", fmt.Sprintf("%s=%s", addVar, addVal),
+		"--build-var", fmt.Sprintf("%s=%s", copyVar, copyVal),
+		"--build-var", fmt.Sprintf("%s=%s", envVar, envVal),
+		"--build-var", fmt.Sprintf("%s=%s", exposeVar, exposeVal),
+		"--build-var", fmt.Sprintf("%s=%s", userVar, userVal),
+		"--build-var", fmt.Sprintf("%s=%s", volVar, volVal),
+	}
+	if _, err := buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
+		t.Fatal(err)
+	}
+
+	var resMap map[string]interface{}
+	var resArr []string
+	res := ""
+	res, err = inspectFieldJSON(imgName, "Config.WorkingDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != wdVal {
+		t.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", wdVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := json.Unmarshal([]byte(res), &resArr); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, v := range resArr {
+		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
+			envVar, envVal, resArr)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
+		t.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.User")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != userVal {
+		t.Fatalf("Config.User value mismatch. Expected: %s, got: %s", userVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := resMap[volVal]; !ok {
+		t.Fatalf("Config.Volumes value mismatch. Expected volume: %s, got: %v", volVal, resMap)
+	}
+
+	logDone("build - build an image with command line values for build variables")
+}
+
+func TestBuildBuildVarsUsingVarFile(t *testing.T) {
+	imgName := "bldvarstest"
+	defer func() { deleteImages(imgName) }()
+
+	varFile := "varFile"
+	wdVar := "WDIR"
+	wdVal := "/tmp/"
+	addVar := "AFILE"
+	addVal := "addFile"
+	copyVar := "CFILE"
+	copyVal := "copyFile"
+	envVar := "foo"
+	envVal := "bar"
+	exposeVar := "EPORT"
+	exposeVal := "9999"
+	userVar := "USER"
+	userVal := "testUser"
+	volVar := "VOL"
+	volVal := "/testVol/"
+	ctx, err := fakeContext(fmt.Sprintf("FROM busybox\n"+
+		"WORKDIR ${%s}\n"+
+		"ADD ${%s} testDir/\n"+
+		"COPY $%s testDir/\n"+
+		"ENV %s=${%s}\n"+
+		"EXPOSE $%s\n"+
+		"USER $%s\n"+
+		"VOLUME ${%s}\n",
+		wdVar, addVar, copyVar, envVar, envVar, exposeVar, userVar, volVar),
+		map[string]string{
+			varFile: fmt.Sprintf("%s=%s\n%s=%s\n%s=%s\n%s=%s\n%s=%s\n%s=%s\n%s=%s\n",
+				wdVar, wdVal, addVar, addVal, copyVar, copyVal, envVar, envVal,
+				exposeVar, exposeVal, userVar, userVal, volVar, volVal),
+			addVal:  "some stuff",
+			copyVal: "some stuff",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	args := []string{
+		"--build-var-file", fmt.Sprintf("%s/%s", ctx.Dir, varFile),
+	}
+	if _, err := buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
+		t.Fatal(err)
+	}
+
+	var resMap map[string]interface{}
+	var resArr []string
+	res := ""
+	res, err = inspectFieldJSON(imgName, "Config.WorkingDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != wdVal {
+		t.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", wdVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := json.Unmarshal([]byte(res), &resArr); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, v := range resArr {
+		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
+			envVar, envVal, resArr)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
+		t.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.User")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != userVal {
+		t.Fatalf("Config.User value mismatch. Expected: %s, got: %s", userVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := resMap[volVal]; !ok {
+		t.Fatalf("Config.Volumes value mismatch. Expected volume: %s, got: %v", volVal, resMap)
+	}
+
+	logDone("build - build an image with values for build variables read from file")
+}
+
+func TestBuildBuildVarsEnvOverride(t *testing.T) {
+	envKey := "foo"
+	envVal := "bar"
+	envKey1 := "foo1"
+	envValOveride := "barOverride"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-var",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
+		"ENV %s %s \n"+
+		"ENV %s ${%s} \n"+
+		"RUN echo $%s\n"+
+		"CMD echo $%s\n",
+		envKey, envValOveride,
+		envKey1, envKey,
+		envKey1, envKey1))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || !strings.Contains(out, envValOveride) {
+		if err != nil {
+			t.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		defer func() { deleteImages("bldenvtest") }()
+		t.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envValOveride)
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "bldenvtest")
+	if out, _, err := runCommandWithOutput(runCmd); !strings.Contains(out, envValOveride) || err != nil {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	}
+
+	logDone("build - build an image with values for build variables overriden by ENV primitive")
 }

@@ -173,6 +173,8 @@ You can now copy data which is contained in a volume.
 This endpoint now optionally takes a serialized array of build-time environment
 variables.
 
+This endpoint now optionally takes a serialized array of values for build variables.
+
 ## v1.15
 
 ### Full Documentation

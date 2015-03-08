@@ -43,7 +43,7 @@ as context.
 **-f**, **--file**=*PATH/Dockerfile*
    Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
 
-**-e**, **--env**=*environment*
+**--build-env**=*environment*
    Set build-time environment variables. This option allows you to specify
 arbitrary environment variables that are available for the command(s) that will
 be executed as part of 'RUN' primitive of Dockerfile. Such a variable is only
@@ -53,8 +53,18 @@ actual deployment environments. This gives the flexibility to build
 an image by passing host specific environment variables (like http_proxy) without
 changing the Dockerfile.
 
-**--env-file**=[]
+**--build-env-file**=[]
    Read in a line delimited file of build-time environment variables.
+
+**--build-var**=*<variable=value>*
+   Set values for build variables. This option allows you to specify
+values of the variables that are available for expansion/substitution in the
+Dockerfile primitives, without an explicit definition by the ENV primitive.
+Note that the expanded values of these variables get persisted in the intermediate
+and final docker images.
+
+**--build-var-file**=[]
+   Read in a line delimited file of values for build variables.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.
