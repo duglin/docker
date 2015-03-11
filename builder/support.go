@@ -50,7 +50,7 @@ func (b *Builder) replaceEnv(str string) string {
 		// a shell script i.e. `ENV foo bar` overrides value of `foo` passed in build
 		// context. But `ENV foo $foo` will use the value from build context if one
 		// isn't already been defined by a previous ENV primitive.
-		for _, keyval := range b.BuildVars {
+		for _, keyval := range b.BuildEnv {
 			tmp := strings.SplitN(keyval, "=", 2)
 			if tmp[0] == matchKey {
 				str = strings.Replace(str, match, tmp[1], -1)

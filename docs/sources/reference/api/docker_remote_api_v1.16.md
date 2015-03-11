@@ -1210,18 +1210,16 @@ Query Parameters:
 -   **Content-type** – should be set to `"application/tar"`.
 -   **X-Registry-Config** – base64-encoded ConfigFile object
 -   **X-BuildEnv** – base64-encoded JSON array of strings of build-time environment
-    variables in the form <var>=<value>. These can be accessed like regular
-    environment variables in the 'RUN' primitive of the Dockerfile. And they are
-    not persisted in the intermediate and final images. This can be useful for
-    building images that require access to certain environment variables that
-    are specific to the build host like http-proxy; user credentials for
-    pulling intermediate files etc.
--   **X-BuildVars** – base64-encoded JSON array of strings of values for the build
     variables in the form <var>=<value>. These are used to expand/substitute
     the corresponding variables used in the Dockerfile primitives, without
-    an explicit definition by the ENV primitive. Note that the expanded values
-    of these variables get persisted in the intermediate and final docker images.
-
+    an explicit prior definition by the ENV primitive. These are also used as
+    environment context for the command(s) run as part of the 'RUN' primitive
+    of the Dockerfile, if there is no prior explicit definition of the variable by the ENV primitive.
+    Note that these variables get persisted in the intermediate and final docker
+    images, if they result in an expansion or substitution as part of Dockerfile primitives.
+    However, they are not persisted when used as environment context for command(s)
+    run as part of `RUN`. This gives the flexibility to build an image by passing host specific
+    environment variables (like http_proxy) without affecting portability of generated image.
 
 Status Codes:
 

@@ -8,8 +8,8 @@ docker-build - Build a new image from the source code at PATH
 **docker build**
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
-[**-e**|**--env**[=*[]*]]
-[**--env-file**[=*[]*]]
+[**--build-env**[=*[]*]]
+[**--build-env-file**[=*[]*]]
 [**--force-rm**[=*false*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
@@ -45,26 +45,19 @@ as context.
 
 **--build-env**=*environment*
    Set build-time environment variables. This option allows you to specify
-arbitrary environment variables that are available for the command(s) that will
-be executed as part of 'RUN' primitive of Dockerfile. Such a variable is only
-accessible during 'RUN' and is not persisted with the intermediate
-and final docker images, keeping the generated image portable across the
-actual deployment environments. This gives the flexibility to build
-an image by passing host specific environment variables (like http_proxy) without
-changing the Dockerfile.
+values of the variables that are available for expansion/substitution in the
+Dockerfile primitives like ADD, COPY etc, without an explicit prior definition by
+the ENV primitive. The build-time environment variable are also passed as environment
+context for the command(s) that will be executed as part of 'RUN' primitive
+of Dockerfile, if there is no explicit prior definition by the ENV primitive.
+Note that these variables get persisted in the intermediate and final docker
+images, if they result in an expansion or substitution as part of Dockerfile primitives.
+However, they are not persisted when used as environment context for command(s)
+run as part of `RUN`. This gives the flexibility to build an image by passing host specific
+environment variables (like http_proxy) without affecting portability of generated image.
 
 **--build-env-file**=[]
    Read in a line delimited file of build-time environment variables.
-
-**--build-var**=*<variable=value>*
-   Set values for build variables. This option allows you to specify
-values of the variables that are available for expansion/substitution in the
-Dockerfile primitives, without an explicit definition by the ENV primitive.
-Note that the expanded values of these variables get persisted in the intermediate
-and final docker images.
-
-**--build-var-file**=[]
-   Read in a line delimited file of values for build variables.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

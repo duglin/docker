@@ -5687,7 +5687,7 @@ func TestBuildBuildTimeEnvOverride(t *testing.T) {
 	logDone("build - build an image with build time environment variables override")
 }
 
-func TestBuildBuildVars(t *testing.T) {
+func TestBuildBuildTimeEnvExpansion(t *testing.T) {
 	imgName := "bldvarstest"
 	defer func() { deleteImages(imgName) }()
 
@@ -5724,13 +5724,13 @@ func TestBuildBuildVars(t *testing.T) {
 	}
 
 	args := []string{
-		"--build-var", fmt.Sprintf("%s=%s", wdVar, wdVal),
-		"--build-var", fmt.Sprintf("%s=%s", addVar, addVal),
-		"--build-var", fmt.Sprintf("%s=%s", copyVar, copyVal),
-		"--build-var", fmt.Sprintf("%s=%s", envVar, envVal),
-		"--build-var", fmt.Sprintf("%s=%s", exposeVar, exposeVal),
-		"--build-var", fmt.Sprintf("%s=%s", userVar, userVal),
-		"--build-var", fmt.Sprintf("%s=%s", volVar, volVal),
+		"--build-env", fmt.Sprintf("%s=%s", wdVar, wdVal),
+		"--build-env", fmt.Sprintf("%s=%s", addVar, addVal),
+		"--build-env", fmt.Sprintf("%s=%s", copyVar, copyVal),
+		"--build-env", fmt.Sprintf("%s=%s", envVar, envVal),
+		"--build-env", fmt.Sprintf("%s=%s", exposeVar, exposeVal),
+		"--build-env", fmt.Sprintf("%s=%s", userVar, userVal),
+		"--build-env", fmt.Sprintf("%s=%s", volVar, volVal),
 	}
 	if _, err := buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
 		t.Fatal(err)
@@ -5800,7 +5800,7 @@ func TestBuildBuildVars(t *testing.T) {
 	logDone("build - build an image with command line values for build variables")
 }
 
-func TestBuildBuildVarsUsingVarFile(t *testing.T) {
+func TestBuildBuildTimeEnvExpansionUsingVarFile(t *testing.T) {
 	imgName := "bldvarstest"
 	defer func() { deleteImages(imgName) }()
 
@@ -5841,7 +5841,7 @@ func TestBuildBuildVarsUsingVarFile(t *testing.T) {
 	}
 
 	args := []string{
-		"--build-var-file", fmt.Sprintf("%s/%s", ctx.Dir, varFile),
+		"--build-env-file", fmt.Sprintf("%s/%s", ctx.Dir, varFile),
 	}
 	if _, err := buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
 		t.Fatal(err)
@@ -5911,12 +5911,12 @@ func TestBuildBuildVarsUsingVarFile(t *testing.T) {
 	logDone("build - build an image with values for build variables read from file")
 }
 
-func TestBuildBuildVarsEnvOverride(t *testing.T) {
+func TestBuildBuildTimeEnvExpansionOverride(t *testing.T) {
 	envKey := "foo"
 	envVal := "bar"
 	envKey1 := "foo1"
 	envValOveride := "barOverride"
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-var",
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "bldenvtest", "--build-env",
 		fmt.Sprintf("%s=%s", envKey, envVal), "-")
 	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM busybox\n"+
 		"ENV %s %s \n"+

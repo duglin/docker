@@ -264,7 +264,19 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// set build-time environment for 'run'. We let dockerfile
 	// environment override build-time environment.
 	env := b.Config.Env
-	b.Config.Env = append(b.BuildEnv, b.Config.Env...)
+	for _, bldEnv := range b.BuildEnv {
+		found := false
+		bldEnvKey := strings.Split(bldEnv, "=")[0]
+		for _, cfgEnv := range b.Config.Env {
+			cfgEnvKey := strings.Split(cfgEnv, "=")[0]
+			if bldEnvKey == cfgEnvKey {
+				found = true
+			}
+		}
+		if !found {
+			b.Config.Env = append(b.Config.Env, bldEnv)
+		}
+	}
 
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
 	defer func(env []string) { b.Config.Env = env }(env)
