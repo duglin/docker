@@ -35,6 +35,9 @@ To see the man page for a command run **man docker <command>**.
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
 
+**--config**=""
+  Use the specified configuration file rather than the default one.
+
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 

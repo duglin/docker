@@ -77,6 +77,7 @@ expect an integer, and they can only be specified once.
       --api-cors-header=""                   Set CORS headers in the remote API
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
+	  --config=""                            Location of the config file
       -D, --debug=false                      Enable debug mode
       -d, --daemon=false                     Enable daemon mode
       --dns=[]                               DNS server to use
@@ -786,6 +787,94 @@ Supported `Dockerfile` instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FR
     f5283438590d
     $ sudo docker inspect -f "{{ .Config.Env }}" f5283438590d
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
+
+## config
+
+Manage the `docker` configuration file. With the `docker config` command
+you can view and edit the configuration properties that will be used by
+the `docker` client.  There are several sub-commands that can be used:
+
+### get
+
+The `docker config get` command is used to display the value of a configuration
+property. For example:
+
+```
+$ docker config get DockerHost
+127.0.0.1:2375
+```
+
+shows the value of the `DockerHost` property.
+See the [properties](#properties) section for details on how
+to specify the property names.
+
+### set
+
+The `docker config set` command is used to update the value of a configuration
+property. This is also used to add new values to properties that are
+arrays or maps. By using a value of `""` (an empty string), `set` can be
+used to delete values from arrays or maps.  For example:
+
+```
+$ docker config set DockerHost 127.0.0.1:2375
+$ docker config set HttpHeaders.ClientID a836bf23c   # add new HTTP header
+$ docker config set HttpHeadesr.ClientID ""          # removes entry
+```
+
+In the above example, `HttpHeader` is a map where a string is the key as well
+as the value.
+
+When specifying an array index that is beyond the size of the array, the
+array will be expanded to that size and empty entries will be used to fill
+those new entries.
+
+See the [properties](#properties) section for details on how
+to specify the property names.
+
+### list
+
+The `docker config list` command is used to display the values of
+all the configuration properties currently defined.  For example:
+
+```
+$ docker config list
+DockerHost 127.0.0.1:2375
+HttpHeaders.ClientID a836bf23c
+```
+
+### dump
+
+The `docker config dump` command is used to display the configuration
+file in JSON.  For example:
+
+```
+{
+  "DockerHost": "127.0.0.1:2376",
+  "HttpHeaders": {
+    "ClientID": "a836bf23c"
+  }
+}
+```
+
+### properties
+
+The configuration properties are specified as a dot (`.`) separated
+list of propreties names that represent walking the configuration
+properties from the outermost layer down to the innermost one.
+
+Using the example shown above in the `docker config dump` section,
+to reference the `ClientID` property we start at the outermost property
+associated with the property (which in this case is `HttpHeaders`) and
+then add a `.` followed by `ClientID`. Resulting in: `HttpHeaders.ClientID`.
+
+When referencing items in an array use the position of the entry within
+the array - starting with `1` for the first entry.  For example, if there
+is an array of `People` and each has a `Name`, then to get the third person's
+name you would use: `People.3.Name`.
+
+Likewise, if there was a map of `People` where their `Name` was also
+used as the key, then you would use that value in the property
+idenfitication: `People.Mary.Name` would reference Mary's `Name` property.
 
 ## cp
 

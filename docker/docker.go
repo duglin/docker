@@ -60,17 +60,35 @@ func main() {
 		setLogLevel(log.DebugLevel)
 	}
 
-	if len(flHosts) == 0 {
-		defaultHost := os.Getenv("DOCKER_HOST")
-		if defaultHost == "" || *flDaemon {
-			// If we do not have a host, default to unix socket
-			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+	var cliConfig *client.ClientConfig
+	var err error
+
+	if !*flDaemon {
+		configFile := os.Getenv("DOCKER_CONFIG")
+		if *flConfig != "" {
+			configFile = *flConfig
 		}
-		defaultHost, err := api.ValidateHost(defaultHost)
+		cliConfig, err = client.NewClientConfig(configFile)
+		if err != nil {
+			log.Warningf("Can't load client config file: %s\n", err.Error())
+		}
+	}
+
+	if len(flHosts) == 0 {
+		dockerHost := os.Getenv("DOCKER_HOST")
+		if dockerHost == "" || *flDaemon {
+			if cliConfig != nil && cliConfig.DockerHost != "" {
+				dockerHost = cliConfig.DockerHost
+			} else {
+				// If we do not have a host, default to unix socket
+				dockerHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+			}
+		}
+		dockerHost, err := api.ValidateHost(dockerHost)
 		if err != nil {
 			log.Fatal(err)
 		}
-		flHosts = append(flHosts, defaultHost)
+		flHosts = []string{dockerHost}
 	}
 
 	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
@@ -130,9 +148,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig, cliConfig)
 	} else {
-		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil, cliConfig)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

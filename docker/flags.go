@@ -32,6 +32,7 @@ func getDaemonConfDir() string {
 
 var (
 	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+	flConfig    = flag.String([]string{"-config"}, "", "Location of the config file")
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
@@ -79,6 +80,7 @@ func init() {
 			{"attach", "Attach to a running container"},
 			{"build", "Build an image from a Dockerfile"},
 			{"commit", "Create a new image from a container's changes"},
+			{"config", "Manage the config file properties"},
 			{"cp", "Copy files/folders from a container's filesystem to the host path"},
 			{"create", "Create a new container"},
 			{"diff", "Inspect changes on a container's filesystem"},

@@ -21,6 +21,7 @@ import (
 )
 
 type DockerCli struct {
+	config     *ClientConfig
 	proto      string
 	addr       string
 	configFile *registry.ConfigFile
@@ -125,7 +126,7 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, addr string, tlsConfig *tls.Config) *DockerCli {
+func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, addr string, tlsConfig *tls.Config, cliConfig *ClientConfig) *DockerCli {
 	var (
 		inFd          uintptr
 		outFd         uintptr
@@ -133,6 +134,10 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		isTerminalOut = false
 		scheme        = "http"
 	)
+
+	if cliConfig == nil {
+		cliConfig, _ = NewClientConfig("")
+	}
 
 	if tlsConfig != nil {
 		scheme = "https"
@@ -168,6 +173,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	}
 
 	return &DockerCli{
+		config:        cliConfig,
 		proto:         proto,
 		addr:          addr,
 		in:            in,

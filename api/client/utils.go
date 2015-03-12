@@ -84,6 +84,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
+	cli.AddConfigFileHeaders(req)
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 	if data != nil {
@@ -132,6 +133,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
+	cli.AddConfigFileHeaders(req)
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 	if method == "POST" {
@@ -260,7 +262,7 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 	sigchan := make(chan os.Signal, 1)
 	gosignal.Notify(sigchan, signal.SIGWINCH)
 	go func() {
-		for _ = range sigchan {
+		for range sigchan {
 			cli.resizeTty(id, isExec)
 		}
 	}()
@@ -293,4 +295,11 @@ func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, err
 		return nil, -1, err
 	}
 	return body, statusCode, nil
+}
+
+func (cli *DockerCli) AddConfigFileHeaders(req *http.Request) error {
+	for k, v := range cli.config.HttpHeaders {
+		req.Header.Set(k, v)
+	}
+	return nil
 }

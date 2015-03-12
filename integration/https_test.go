@@ -38,7 +38,7 @@ func getTlsConfig(certFile, keyFile string, t *testing.T) *tls.Config {
 // TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
 func TestHttpsInfo(t *testing.T) {
 	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, "", testDaemonProto,
-		testDaemonHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
+		testDaemonHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t), nil)
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
 		if err := cli.CmdInfo(); err != nil {
@@ -51,7 +51,7 @@ func TestHttpsInfo(t *testing.T) {
 // by using a rogue client certificate and checks that it fails with the expected error.
 func TestHttpsInfoRogueCert(t *testing.T) {
 	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, "", testDaemonProto,
-		testDaemonHttpsAddr, getTlsConfig("client-rogue-cert.pem", "client-rogue-key.pem", t))
+		testDaemonHttpsAddr, getTlsConfig("client-rogue-cert.pem", "client-rogue-key.pem", t), nil)
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
 		err := cli.CmdInfo()
@@ -68,7 +68,7 @@ func TestHttpsInfoRogueCert(t *testing.T) {
 // which provides a rogue server certificate and checks that it fails with the expected error
 func TestHttpsInfoRogueServerCert(t *testing.T) {
 	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, "", testDaemonProto,
-		testDaemonRogueHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
+		testDaemonRogueHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t), nil)
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
 		err := cli.CmdInfo()
