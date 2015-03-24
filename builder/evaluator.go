@@ -311,7 +311,14 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, b.Config.Env)
+			// Append the build-time environment to config-environment.
+			// This allows builder config to override the variables, making the behavior similar to
+			// a shell script i.e. `ENV foo bar` overrides value of `foo` passed in build
+			// context. But `ENV foo $foo` will use the value from build context if one
+			// isn't already been defined by a previous ENV primitive.
+			envs := b.Config.Env
+			envs = append(envs, b.BuildEnv...)
+			str, err = ProcessWord(ast.Value, envs)
 			if err != nil {
 				return err
 			}

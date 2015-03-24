@@ -244,8 +244,35 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	args = handleJsonArgs(args, attributes)
 
+	// set the build-time environment for 'run'.
+	// We let dockerfile environment override the build-time environment.
+	// We don't persist the build time environment with container's config
+	// environment, but just sort and pre-pend it to the command string itself.
+	// This helps with tracing back the image's actual environment at the time
+	// of RUN, without leaking it to the final image. It also aids cache
+	// lookup for same image built with same build time environment.
+	cmdBuildEnv := []string{}
+	for _, bldEnv := range b.BuildEnv {
+		found := false
+		bldEnvKey := strings.Split(bldEnv, "=")[0]
+		for _, cfgEnv := range b.Config.Env {
+			cfgEnvKey := strings.Split(cfgEnv, "=")[0]
+			if bldEnvKey == cfgEnvKey {
+				found = true
+			}
+		}
+		if !found {
+			cmdBuildEnv = append(cmdBuildEnv, bldEnv)
+		}
+	}
+
 	if !attributes["json"] {
-		args = append([]string{"/bin/sh", "-c"}, args...)
+		cmdStr := strings.Join(args, " ")
+		if len(cmdBuildEnv) > 0 {
+			sort.Strings(cmdBuildEnv)
+			cmdStr = fmt.Sprintf("export %s; %s", strings.Join(cmdBuildEnv, " "), cmdStr)
+		}
+		args = append([]string{"/bin/sh", "-c"}, cmdStr)
 	}
 
 	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
@@ -261,28 +288,10 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// set Cmd manually, this is special case only for Dockerfiles
 	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
-	// set build-time environment for 'run'. We let dockerfile
-	// environment override build-time environment.
-	env := b.Config.Env
-	for _, bldEnv := range b.BuildEnv {
-		found := false
-		bldEnvKey := strings.Split(bldEnv, "=")[0]
-		for _, cfgEnv := range b.Config.Env {
-			cfgEnvKey := strings.Split(cfgEnv, "=")[0]
-			if bldEnvKey == cfgEnvKey {
-				found = true
-			}
-		}
-		if !found {
-			b.Config.Env = append(b.Config.Env, bldEnv)
-		}
-	}
 
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
-	defer func(env []string) { b.Config.Env = env }(env)
 
 	log.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
-	log.Debugf("[BUILDER] Environment (applied in order): %v", b.Config.Env)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -306,8 +315,6 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if err != nil {
 		return err
 	}
-	// revert to original config, we don't persist build time environment
-	b.Config.Env = env
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
