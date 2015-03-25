@@ -42,8 +42,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
-	cli.LoadConfigFile()
-
 	// Resolve the Auth config relevant for this server
 	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 
