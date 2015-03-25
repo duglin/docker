@@ -244,13 +244,27 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	args = handleJsonArgs(args, attributes)
 
-	// set the build-time environment for 'run'.
-	// We let dockerfile environment override the build-time environment.
-	// We don't persist the build time environment with container's config
-	// environment, but just sort and pre-pend it to the command string itself.
-	// This helps with tracing back the image's actual environment at the time
-	// of RUN, without leaking it to the final image. It also aids cache
-	// lookup for same image built with same build time environment.
+	if !attributes["json"] {
+		args = append([]string{"/bin/sh", "-c"}, args...)
+	}
+
+	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
+	runCmd.SetOutput(ioutil.Discard)
+	runCmd.Usage = nil
+
+	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...))
+	if err != nil {
+		return err
+	}
+
+	// Stash it away
+	cmd := b.Config.Cmd
+
+	// set Cmd manually, this is special case only for Dockerfiles
+	b.Config.Cmd = config.Cmd
+
+	// figure out which build-time envs we want to keep by removing
+	// the ones we set in the container
 	cmdBuildEnv := []string{}
 	for _, bldEnv := range b.BuildEnv {
 		found := false
@@ -266,40 +280,55 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	if !attributes["json"] {
-		cmdStr := strings.Join(args, " ")
-		if len(cmdBuildEnv) > 0 {
-			sort.Strings(cmdBuildEnv)
-			cmdStr = fmt.Sprintf("export %s; %s", strings.Join(cmdBuildEnv, " "), cmdStr)
-		}
-		args = append([]string{"/bin/sh", "-c"}, cmdStr)
+	// If we have any build-time envs left over...
+	if len(cmdBuildEnv) > 0 {
+		// sort the list
+		sort.Strings(cmdBuildEnv)
+
+		// prepend build-env array to cmd
+		tmpStr := fmt.Sprintf("|%d", len(cmdBuildEnv))
+		tmpCmd := append([]string{tmpStr}, cmdBuildEnv...)
+
+		b.Config.Cmd = append(tmpCmd, config.Cmd...)
 	}
 
-	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
-	runCmd.SetOutput(ioutil.Discard)
-	runCmd.Usage = nil
-
-	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...))
-	if err != nil {
-		return err
-	}
-
-	cmd := b.Config.Cmd
-	// set Cmd manually, this is special case only for Dockerfiles
-	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
 
+	env := b.Config.Env     // save pre-build-env list envs
+	saveCmd := b.Config.Cmd //  save version to save in image/cache
+
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	defer func(env []string) { b.Config.Env = env }(env)
 
 	log.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	log.Debugf("[BUILDER] Environment (applied in order): %v", b.Config.Env)
 
 	hit, err := b.probeCache()
+
 	if err != nil {
 		return err
 	}
 	if hit {
 		return nil
 	}
+
+	// now set container env to include build-env list
+	for _, bldEnv := range cmdBuildEnv {
+		found := false
+		bldEnvKey := strings.Split(bldEnv, "=")[0]
+		for _, cfgEnv := range b.Config.Env {
+			cfgEnvKey := strings.Split(cfgEnv, "=")[0]
+			if bldEnvKey == cfgEnvKey {
+				found = true
+			}
+		}
+		if !found {
+			b.Config.Env = append(b.Config.Env, bldEnv)
+		}
+	}
+
+	// Now restore the cmd to not have any build-envs in it
+	b.Config.Cmd = config.Cmd
 
 	c, err := b.create()
 	if err != nil {
@@ -315,6 +344,11 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if err != nil {
 		return err
 	}
+
+	// Set the values we want to save in the image
+	b.Config.Env = env     // pre-build-env list
+	b.Config.Cmd = saveCmd // build-env list + cmd
+
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
