@@ -42,6 +42,8 @@ type Config struct {
 
 	// Add additonal config file info here - eg:
 	// DockerHost  string                `json:"dockerhost,omitempty"`
+
+	HttpHeaders map[string]string `json:"httpHeaders,omitempty"`
 }
 
 // Config data + location of file
