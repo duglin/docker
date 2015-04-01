@@ -56,8 +56,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return string(line)
 	}
 
-	cli.LoadConfigFile()
-	authconfig, ok := cli.configFile.Configs[serverAddress]
+	cli.LoadAuthFile()
+	authconfig, ok := cli.authFile.Configs[serverAddress]
 	if !ok {
 		authconfig = registry.AuthConfig{}
 	}
@@ -113,26 +113,28 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
-	cli.configFile.Configs[serverAddress] = authconfig
+	cli.authFile.Configs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], nil)
+	stream, statusCode, err := cli.call("POST", "/auth", cli.authFile.Configs[serverAddress], nil)
 	if statusCode == 401 {
-		delete(cli.configFile.Configs, serverAddress)
-		registry.SaveConfig(cli.configFile)
+		delete(cli.authFile.Configs, serverAddress)
+		registry.SaveConfig(cli.authFile)
 		return err
 	}
 	if err != nil {
 		return err
 	}
 
+	home := homedir.Get()
+
 	var response types.AuthResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
-		cli.configFile, _ = registry.LoadConfig(homedir.Get())
+		cli.authFile, _ = registry.LoadConfig(home)
 		return err
 	}
 
-	registry.SaveConfig(cli.configFile)
-	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(homedir.Get(), registry.CONFIGFILE))
+	registry.SaveConfig(cli.authFile)
+	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(home, registry.CONFIGFILE))
 
 	if response.Status != "" {
 		fmt.Fprintf(cli.out, "%s\n", response.Status)

@@ -118,8 +118,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "No Proxy: %s\n", remoteInfo.Get("NoProxy"))
 	}
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
-		cli.LoadConfigFile()
-		u := cli.configFile.Configs[remoteInfo.Get("IndexServerAddress")].Username
+		cli.LoadAuthFile()
+		u := cli.authFile.Configs[remoteInfo.Get("IndexServerAddress")].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
 			fmt.Fprintf(cli.out, "Registry: %v\n", remoteInfo.GetList("IndexServerAddress"))

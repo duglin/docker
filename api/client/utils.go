@@ -69,6 +69,11 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 
+	// Add CLI Config's HTTP Headers
+	for k, v := range cli.configFile.HttpHeaders {
+		req.Header.Set(k, v)
+	}
+
 	if headers != nil {
 		for k, v := range headers {
 			req.Header[k] = v
@@ -141,14 +146,14 @@ func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reade
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(index)
+	authConfig := cli.authFile.ResolveAuthConfig(index)
 	body, statusCode, err := cmdAttempt(authConfig)
 	if statusCode == http.StatusUnauthorized {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
 		if err = cli.CmdLogin(index.GetAuthConfigKey()); err != nil {
 			return nil, -1, err
 		}
-		authConfig = cli.configFile.ResolveAuthConfig(index)
+		authConfig = cli.authFile.ResolveAuthConfig(index)
 		return cmdAttempt(authConfig)
 	}
 	return body, statusCode, err

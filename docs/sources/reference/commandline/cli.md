@@ -48,6 +48,33 @@ These Go environment variables are case-insensitive. See the
 [Go specification](http://golang.org/pkg/net/http/) for details on these
 variables.
 
+## Configuration Files
+The Docker command line stores its configuration files in a directory
+called `.docker` within your home directory. Some of the files in there
+are managed by `docker` and should not be modified. However, there is
+a file called called `config.json` that can be modified to control certain
+aspect of how the Docker command line will behave.
+
+If there are options within `config.json` that modify the same behavior as
+an environment variable, or a command line option, then the order of
+precedence is: command line options override environment variables,
+which override `config.json` file properties.
+
+The `config.json` file is stored as a JSON encoding of the following set of
+properties:
+
+* HttpHeaders - a set of HTTP Headers that will be included in all
+  messages sent from the client to the deamon. Docker will not try
+  to interpret, or understand them, it simply puts them into the messages.
+
+Following is a sample `config.json` file:
+
+    {
+      "HttpHeaders: {
+        "MyHeader": "MyValue"
+      }
+    }
+
 ## Help
 To list the help on any command just execute the command, followed by the `--help` option.
 

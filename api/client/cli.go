@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"text/template"
@@ -20,10 +22,16 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+type ConfigFile struct {
+	HttpHeaders map[string]string `json:"HttpHeaders,omitempty"`
+	filename    string
+}
+
 type DockerCli struct {
 	proto      string
 	addr       string
-	configFile *registry.ConfigFile
+	configFile *ConfigFile
+	authFile   *registry.ConfigFile
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
@@ -107,8 +115,8 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	return flags
 }
 
-func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = registry.LoadConfig(homedir.Get())
+func (cli *DockerCli) LoadAuthFile() (err error) {
+	cli.authFile, err = registry.LoadConfig(homedir.Get())
 	if err != nil {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
@@ -167,9 +175,15 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 
+	configFile, e := LoadConfigFile(filepath.Join(homedir.Get(), ".docker"))
+	if e != nil {
+		fmt.Fprintf(err, "WARNING: Error loading config file:%s\n", e)
+	}
+
 	return &DockerCli{
 		proto:         proto,
 		addr:          addr,
+		configFile:    configFile,
 		in:            in,
 		out:           out,
 		err:           err,
@@ -182,4 +196,42 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		scheme:        scheme,
 		transport:     tr,
 	}
+}
+
+func LoadConfigFile(dirPath string) (*ConfigFile, error) {
+	fn := filepath.Join(dirPath, "config.json")
+
+	configFile := ConfigFile{
+		filename: fn,
+	}
+
+	if _, err := os.Stat(fn); err != nil {
+		// no file is not an error
+		return &configFile, nil
+	}
+
+	data, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return &configFile, fmt.Errorf("Error reading config file(%s):%s", fn, err)
+	}
+
+	err = json.Unmarshal(data, &configFile)
+	if err != nil {
+		return &configFile, fmt.Errorf("Error parsing config file(%s): %s", fn, err)
+	}
+
+	return &configFile, nil
+}
+
+func (cli *DockerCli) SaveConfigFile() error {
+	data, err := json.MarshalIndent(cli.configFile, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(cli.configFile.filename, data, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
 }
