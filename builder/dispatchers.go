@@ -284,6 +284,9 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	c.Mount()
 	defer c.Unmount()
 
+	// Mount this build context into the continaer at "/bc", but read-only
+	c.HostConfig().Binds = append(c.HostConfig().Binds, b.contextPath+":/bc:ro")
+
 	err = b.run(c)
 	if err != nil {
 		return err

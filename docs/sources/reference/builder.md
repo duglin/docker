@@ -288,6 +288,15 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
 
+During the processing of the `RUN` command, the build context is mounted
+(read-only) into the container at `/bc/`.  This means that you can access
+any of the files in your build context directly from within the container
+as you would any other file within the container. Docker does not place any
+limitations on how you access those files. You can read, copy or execute
+them just as you would any other file that's within your container.
+The build context files will not be saved within the resulting image that
+is created.
+
 ### Known Issues (RUN)
 
 - [Issue 783](https://github.com/docker/docker/issues/783) is about file
