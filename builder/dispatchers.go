@@ -17,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/envutil"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
 )
@@ -67,6 +68,10 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		if !gotOne {
 			b.Config.Env = append(b.Config.Env, newVar)
 		}
+
+		// Remove this env var from StartEnv list, if there
+		b.Config.StartEnv = envutil.ReplaceOrAppendEnvValues(b.Config.StartEnv, []string{args[j]})
+
 		j++
 	}
 

@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/pkg/envutil"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/utils"
 )
 
 var (
@@ -174,7 +174,7 @@ func ValidateEnv(val string) (string, error) {
 	if len(arr) > 1 {
 		return val, nil
 	}
-	if !utils.DoesEnvExist(val) {
+	if !envutil.DoesEnvExist(val) {
 		return val, nil
 	}
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil

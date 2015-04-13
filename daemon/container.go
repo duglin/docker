@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/envutil"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
@@ -445,6 +446,14 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
+
+	newStartEnv, err := envutil.ProcessLines(container.Config.StartEnv, env)
+	if err != nil {
+		return err
+	}
+
+	env = envutil.ReplaceOrAppendEnvValues(env, newStartEnv)
+
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
@@ -1371,7 +1380,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env = envutil.ReplaceOrAppendEnvValues(env, container.Config.Env)
 
 	return env
 }

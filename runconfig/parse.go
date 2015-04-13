@@ -296,7 +296,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
-		Env:             envVariables,
+		Env:             nil, // Leave blank
+		StartEnv:        envVariables,
 		Cmd:             runCmd,
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),

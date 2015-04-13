@@ -25,6 +25,7 @@ type Config struct {
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
 	Env             []string
+	StartEnv        []string
 	Cmd             []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
@@ -63,6 +64,9 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	}
 	if Env := job.GetenvList("Env"); Env != nil {
 		config.Env = Env
+	}
+	if StartEnv := job.GetenvList("StartEnv"); StartEnv != nil {
+		config.StartEnv = StartEnv
 	}
 	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
 		config.Cmd = Cmd

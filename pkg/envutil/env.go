@@ -1,4 +1,4 @@
-package builder
+package envutil
 
 // This will take a single word and an array of env variables and
 // process all quotes (" and ') as well as $xxx and ${xxx} env variable
@@ -8,6 +8,7 @@ package builder
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"unicode"
 )
@@ -25,6 +26,78 @@ func ProcessWord(word string, env []string) (string, error) {
 		pos:  0,
 	}
 	return sw.process()
+}
+
+func ProcessLine(line string, env []string) (string, error) {
+	envParts := strings.SplitN(line, "=", 2)
+	if len(envParts) == 2 {
+		newVal, err := ProcessWord(envParts[1], env)
+		if err != nil {
+			return "", err
+		}
+		line = envParts[0] + "=" + newVal
+	}
+	return line, nil
+}
+
+func ProcessLines(lines []string, env []string) ([]string, error) {
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		var err error
+		result[i], err = ProcessLine(line, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+// ReplaceOrAppendValues returns the defaults with the overrides either
+// replaced by env key or appended to the list
+func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
+	cache := make(map[string]int, len(defaults))
+	for i, e := range defaults {
+		parts := strings.SplitN(e, "=", 2)
+		cache[parts[0]] = i
+	}
+
+	for _, value := range overrides {
+		// Values w/o = means they want this env to be removed/unset.
+		if !strings.Contains(value, "=") {
+			if i, exists := cache[value]; exists {
+				defaults[i] = "" // Used to indicate it should be removed
+			}
+			continue
+		}
+
+		// Just do a normal set/update
+		parts := strings.SplitN(value, "=", 2)
+		if i, exists := cache[parts[0]]; exists {
+			defaults[i] = value
+		} else {
+			defaults = append(defaults, value)
+		}
+	}
+
+	// Now remove all entries that we want to "unset"
+	for i := 0; i < len(defaults); i++ {
+		if defaults[i] == "" {
+			defaults = append(defaults[:i], defaults[i+1:]...)
+			i--
+		}
+	}
+
+	return defaults
+}
+
+func DoesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (sw *shellWord) process() (string, error) {
