@@ -3675,15 +3675,35 @@ func TestBuildDockerignore(t *testing.T) {
 		RUN [[ ! -e /bla/src/_vendor ]]
 		RUN [[ ! -e /bla/.gitignore ]]
 		RUN [[ ! -e /bla/README.md ]]
+		RUN [[ ! -e /bla/dir/dir/f1 ]]
+		RUN [[  -e /bla/dir/dir/foo ]]
+		RUN [[ ! -e /bla/dir/foo1 ]]
+		RUN [[ -f /bla/dir/e ]]
+		RUN [[ -f /bla/dir/e-dir/foo ]]
+		RUN [[ ! -e /bla/foo ]]
 		RUN [[ ! -e /bla/.git ]]`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
 		"src/x.go":         "package main",
 		"src/_vendor/v.go": "package main",
+		"dir/foo":          "",
+		"dir/foo1":         "",
+		"dir/dir/f1":       "",
+		"dir/dir/foo":      "",
+		"dir/e":            "",
+		"dir/e-dir/foo":    "",
 		".gitignore":       "",
 		"README.md":        "readme",
-		".dockerignore":    ".git\npkg\n.gitignore\nsrc/_vendor\n*.md",
+		".dockerignore": `
+.git
+pkg
+.gitignore
+src/_vendor
+*.md
+dir
+!dir/e*
+!dir/dir/foo`,
 	})
 	defer ctx.Close()
 	if err != nil {
@@ -3867,6 +3887,7 @@ func TestBuildDockerignoringWholeDir(t *testing.T) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    "FROM scratch",
 		"Makefile":      "all:",
+		".gitignore":    "",
 		".dockerignore": ".*\n",
 	})
 	defer ctx.Close()

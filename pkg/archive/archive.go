@@ -450,7 +450,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 				if skip {
 					if f.IsDir() {
-						return filepath.SkipDir
+						// return filepath.SkipDir
 					}
 					return nil
 				}

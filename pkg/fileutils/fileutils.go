@@ -3,6 +3,7 @@ package fileutils
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -18,13 +19,11 @@ func empty(pattern string) bool {
 }
 
 func Matches(relFilePath string, patterns []string) (bool, error) {
-
 	matched := false
 
 	for _, pattern := range patterns {
-
+		pattern = filepath.Clean(pattern)
 		negative := false
-
 		if empty(pattern) {
 			continue
 		}
@@ -43,12 +42,24 @@ func Matches(relFilePath string, patterns []string) (bool, error) {
 			logrus.Errorf("Error matching: %s (pattern: %s)", relFilePath, pattern)
 			return false, err
 		}
-
 		if match {
 			if filepath.Clean(relFilePath) == "." {
-				logrus.Errorf("Can't exclude whole path, excluding pattern: %s", pattern)
-				continue
+				logrus.Errorf("Can't exclude whole path")
+				return false, nil
 			}
+		} else if !match {
+			// Check to see if the pattern matches one of our parent dirs
+			path := filepath.Dir(relFilePath)
+			pathDirs := strings.Split(path, "/")
+			patternDirs := strings.Split(pattern, "/")
+			if path != "." && len(patternDirs) <= len(pathDirs) {
+				m, _ := filepath.Match(strings.Join(patternDirs, "/"),
+					strings.Join(pathDirs[:len(patternDirs)], "/"))
+				match = m
+			}
+		}
+
+		if match {
 			matched = !negative
 		}
 	}
@@ -56,6 +67,5 @@ func Matches(relFilePath string, patterns []string) (bool, error) {
 	if matched {
 		logrus.Debugf("Skipping excluded path: %s", relFilePath)
 	}
-
 	return matched, nil
 }
