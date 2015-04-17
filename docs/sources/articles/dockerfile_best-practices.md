@@ -113,6 +113,30 @@ the command string itself will be used to find a match.
 Once the cache is invalidated, all subsequent `Dockerfile` commands will
 generate new images and the cache will not be used.
 
+### Purposely invalidating the cache
+
+There may be cases where certain `Dockerfile` commands must always be executed 
+and never use the cache. For example, perhaps a `git clone` command must 
+always grab the latest version from the repository, or the current time must 
+be used as a timestamp as part of the build.
+
+In these cases it is desirable to force a cache miss at a certain point in
+the `Dockerfile` processing. To achieve this there are several recommended
+options:
+
+* Prior to the `docker build` command modify the `Dockerfile` command
+  to force a cache miss. For example, including the following command
+  in your `Dockerfile`:
+
+    `ENV dummy 1234948ahads`
+  
+    And then modifying value assigned to `dummy` with a random string will 
+  invalidate the cache.
+
+* Always use `--no-cache` when doing the build. This will, however, not
+  use the cache at all for the entire build and not just for certain
+  `Dockerfile` commands.
+
 ## The Dockerfile instructions
 
 Below you'll find recommendations for the best way to write the
