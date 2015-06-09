@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path"
 	"sort"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -158,17 +157,19 @@ func TestChangesWithChanges(t *testing.T) {
 	createSampleDir(t, layer)
 	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
 
-	// Let's modify modtime for dir1 to be sure it's the same for the two layer (to not having false positive)
-	fi, err := os.Stat(dir1)
-	if err != nil {
-		return
-	}
-	mtime := fi.ModTime()
-	stat := fi.Sys().(*syscall.Stat_t)
-	atime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+	/*
+		// Let's modify modtime for dir1 to be sure it's the same for the two layer (to not having false positive)
+		fi, err := os.Stat(dir1)
+		if err != nil {
+			return
+		}
+		mtime := fi.ModTime()
+		stat := fi.Sys().(*syscall.Stat_t)
+		atime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
 
-	layerDir1 := path.Join(layer, "dir1")
-	os.Chtimes(layerDir1, atime, mtime)
+		layerDir1 := path.Join(layer, "dir1")
+		os.Chtimes(layerDir1, atime, mtime)
+	*/
 
 	changes, err := Changes([]string{layer}, rwLayer)
 	if err != nil {
@@ -178,6 +179,7 @@ func TestChangesWithChanges(t *testing.T) {
 	sort.Sort(changesByPath(changes))
 
 	expectedChanges := []Change{
+		{"/dir1", ChangeModify},
 		{"/dir1/file1-1", ChangeModify},
 		{"/dir1/file1-2", ChangeDelete},
 		{"/dir1/subfolder", ChangeModify},
@@ -200,6 +202,59 @@ func TestChangesWithChanges(t *testing.T) {
 		} else {
 			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
 		}
+	}
+}
+
+func TestChangesWithChanges2(t *testing.T) {
+	baseLayer, err := ioutil.TempDir("", "docker-changes-test.")
+	defer os.RemoveAll(baseLayer)
+
+	dir3 := path.Join(baseLayer, "dir1/dir2/dir3")
+	os.MkdirAll(dir3, 07400)
+
+	file := path.Join(dir3, "file.txt")
+	ioutil.WriteFile(file, []byte("hello"), 0666)
+
+	layer, err := ioutil.TempDir("", "docker-changes-test2.")
+	defer os.RemoveAll(layer)
+
+	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
+		t.Fatalf("Cmd failed: %q", err)
+	}
+
+	os.RemoveAll(path.Join(layer, "dir1/dir2/dir3/file.txt"))
+	file = path.Join(layer, "dir1/dir2/dir3/file1.txt")
+	ioutil.WriteFile(file, []byte("bye"), 0666)
+
+	changes, err := Changes([]string{baseLayer}, layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(changes) != 2 {
+		t.Fatalf("Wrong # of changes - should be 2\n%v", changes)
+	}
+
+	sort.Sort(changesByPath(changes))
+
+	// Now test changing a file instead of adding a file
+	layer, err = ioutil.TempDir("", "docker-changes-test3.")
+	defer os.RemoveAll(layer)
+
+	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
+		t.Fatalf("Cmd failed: %q", err)
+	}
+
+	file = path.Join(layer, "dir1/dir2/dir3/file.txt")
+	ioutil.WriteFile(file, []byte("bye"), 0666)
+
+	changes, err = Changes([]string{baseLayer}, layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(changes) != 1 {
+		t.Fatalf("Wrong # of changes - should be 1\n%v", changes)
 	}
 }
 
