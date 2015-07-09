@@ -84,10 +84,46 @@ type CommonContainer struct {
 
 	monitor      *containerMonitor
 	execCommands *execStore
+	oldExecs     deadExecs
 	daemon       *Daemon
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
+}
+
+// List of dead execs for a container. Oldest one is first in the slice
+type deadExecs struct {
+	sync.RWMutex
+	execs []*execConfig
+}
+
+// Add a new execConfig to the slice making sure that we only keep the
+// latest 10.  Older ones are not only removed from the slice but from the
+// daemon's store too
+func (de *deadExecs) add(ec *execConfig) {
+	de.Lock()
+	defer de.Unlock()
+
+	// Only save the last 10 - older ones we delete from daemon
+	for len(de.execs) >= 10 {
+		oldOne := de.execs[0]
+		oldOne.Container.daemon.execCommands.Delete(oldOne.ID)
+		de.execs = de.execs[1:]
+	}
+
+	de.execs = append(de.execs, ec)
+}
+
+// Remove all old execs associated with the container. Normally called
+// just during a container's cleanup/deletion
+func (de *deadExecs) removeAll() {
+	de.Lock()
+	defer de.Unlock()
+
+	for _, ec := range de.execs {
+		ec.Container.daemon.execCommands.Delete(ec.ID)
+	}
+	de.execs = []*execConfig{}
 }
 
 func (container *Container) FromDisk() error {
@@ -355,6 +391,7 @@ func (container *Container) cleanup() {
 	for _, eConfig := range container.execCommands.s {
 		container.daemon.unregisterExecCommand(eConfig)
 	}
+	container.oldExecs.removeAll()
 
 	container.UnmountVolumes(false)
 }
@@ -859,6 +896,12 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
 	}
+
+	// move the exec command from the container's 'live' store into its
+	// 'dead' store. Also, leave it in the daemon's store so that the
+	// exec command can be inspected.
+	container.execCommands.Delete(execConfig.ID)
+	container.oldExecs.add(execConfig)
 
 	return err
 }
