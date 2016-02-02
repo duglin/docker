@@ -1,0 +1,6 @@
+// testing an empty object
+===
+===
+{}
+===
+{}
